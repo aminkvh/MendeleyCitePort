@@ -398,15 +398,28 @@ CSL_TO_BIBTYPE = {"article-journal": "article", "article": "article", "book": "b
                   "thesis": "phdthesis", "report": "techreport", "webpage": "misc"}
 
 
+def _record_score(d: dict) -> tuple[bool, int]:
+    """Rank duplicate library records so a symbol-preserving one wins over an
+    ASCII-transliterated duplicate (e.g. title "...beta1" vs "...β1") regardless
+    of citation order."""
+    title = d.get("title") or ""
+    has_non_ascii = any(ord(c) > 127 for c in title)
+    n_fields = sum(1 for v in d.values() if v)
+    return (has_non_ascii, n_fields)
+
+
 def write_bibtex(items: dict[str, dict], path: str) -> int:
-    seen: set[str] = set()
-    keys: set[str] = set()
-    entries: list[str] = []
+    best: dict[str, dict] = {}
     for d in items.values():
         dedupe = (d.get("DOI") or "").strip().lower() or (d.get("title") or "").strip().lower()
-        if not dedupe or dedupe in seen:
+        if not dedupe:
             continue
-        seen.add(dedupe)
+        if dedupe not in best or _record_score(d) > _record_score(best[dedupe]):
+            best[dedupe] = d
+
+    keys: set[str] = set()
+    entries: list[str] = []
+    for d in best.values():
         authors = d.get("author") or []
         au = " and ".join(("%s, %s" % (a.get("family", ""), a.get("given", ""))).strip(", ")
                           if a.get("family") else a.get("literal", "") for a in authors)
