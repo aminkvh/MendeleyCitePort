@@ -1,0 +1,11 @@
+# never commit manuscripts or exports by accident
+*.docx
+*.bib
+*.ris
+dois.txt
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.zip
